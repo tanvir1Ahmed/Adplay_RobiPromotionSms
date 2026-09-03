@@ -1,22 +1,7 @@
 using RobiSendPromotionSms;
 
-// Recipient and message. Change the number here to send somewhere else.
-var msisdn = "8801852956967";
-var message = "Hello world";
+var runner = new PromotionSmsRunner();
 
-using var httpClient = new HttpClient();
-var sender = new SmsSender(httpClient);
-
-try
-{
-    Console.WriteLine($"Sending to {msisdn}...");
-
-    var response = await sender.SendSms(msisdn, message);
-
-    Console.WriteLine($"SMS sent to {msisdn}.");
-    Console.WriteLine(response);
-}
-catch (Exception ex)
-{
-    Console.WriteLine($"{ex.GetType().Name}: {ex.Message}");
-}
+await runner.RunAsync("১০ জিবি ইন্টারনেট জিতে নিন! গেম খেলতে Visit করুন: https://robi.gamestar.team/home/campaignimagenew2?ckey=66883881", "DARUN_OFFER");
+await runner.RunAsync("১০ জিবি ইন্টারনেট জিতে নিন! গেম খেলতে Visit করুন: https://robi.gamestar.team/home/campaignimagenew2?ckey=66883881", "Robi");
+await runner.RunAsync("১০ জিবি ইন্টারনেট জিতে নিন! গেম খেলতে Visit করুন: https://robi.gamestar.team/home/campaignimagenew2?ckey=66883881", "Beshi_Labh");

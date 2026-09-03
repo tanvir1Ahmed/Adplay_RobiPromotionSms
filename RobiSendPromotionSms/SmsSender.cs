@@ -21,11 +21,14 @@ namespace RobiSendPromotionSms
         private const string Password = "VEuM0B1le#tvfi3a";
         private const string Scope = "PRODUCTION";
 
-        // The short code the message is sent from. It appears both in the request
-        // body as senderAddress and in the outbound URL path.
-        private const string SenderAddress = "25063";
+        // The short code used when no sender is given.
+        public const string DefaultSenderAddress = "25063";
+
+        // The outbound URL always uses the 25063 short code, exactly as the working
+        // /sms/send-sms API does. The gateway takes the actual sender from the
+        // request body, so an alphanumeric sender ID goes there, not in the path.
         private const string SmsUrl =
-            "https://apigate.robi.com.bd/Ext/smsmessaging/v1/outbound/tel:" + SenderAddress + "/requests";
+            "https://apigate.robi.com.bd/Ext/smsmessaging/v1/outbound/tel:25063/requests";
 
         private const string ClientCorrelator = "Adplay Technology";
         private const string NotifyUrl = "http://127.0.0.1/rest_test.php";
@@ -39,15 +42,45 @@ namespace RobiSendPromotionSms
             Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
         };
 
+        // Cached bearer token. Tokens last an hour, so a bulk run reuses one
+        // instead of minting a fresh token per message.
+        private string? _cachedToken;
+        private DateTimeOffset _tokenExpiresAt = DateTimeOffset.MinValue;
+
         public SmsSender(HttpClient httpClient)
         {
             _httpClient = httpClient;
         }
 
         /// <summary>
+        /// Returns a valid bearer token, reusing the cached one until it is close
+        /// to expiring.
+        /// </summary>
+        private async Task<string?> GetAccessToken()
+        {
+            if (_cachedToken != null && DateTimeOffset.UtcNow < _tokenExpiresAt)
+            {
+                return _cachedToken;
+            }
+
+            var (token, expiresIn) = await GenerateTokenWithLifetime();
+            _cachedToken = token;
+
+            // Renew a minute early so a token cannot expire mid-request.
+            _tokenExpiresAt = DateTimeOffset.UtcNow.AddSeconds(Math.Max(expiresIn - 60, 0));
+            return _cachedToken;
+        }
+
+        /// <summary>
         /// Requests an OAuth bearer token from the Robi APIGate.
         /// </summary>
         public async Task<string?> GenerateToken()
+        {
+            var (token, _) = await GenerateTokenWithLifetime();
+            return token;
+        }
+
+        private async Task<(string? Token, int ExpiresIn)> GenerateTokenWithLifetime()
         {
             var payload = new TokenRequestPayload
             {
@@ -75,31 +108,39 @@ namespace RobiSendPromotionSms
             }
 
             var tokenResponse = JsonSerializer.Deserialize<TokenResponse>(responseContent);
-            return tokenResponse?.AccessToken;
+            return (tokenResponse?.AccessToken, tokenResponse?.ExpiresIn ?? 0);
         }
 
         /// <summary>
         /// Sends an SMS to a single number. Accepts the number with or without the
         /// 88 country prefix. Returns the raw API response on success.
         /// </summary>
-        public async Task<string> SendSms(string msisdn, string message)
+        /// <param name="msisdn">Recipient number.</param>
+        /// <param name="message">Message text.</param>
+        /// <param name="senderAddress">
+        /// Sender the message appears from: either the 25063 short code or an
+        /// approved alphanumeric sender ID such as DARUN_OFFER.
+        /// </param>
+        public async Task<string> SendSms(
+            string msisdn,
+            string message,
+            string senderAddress = DefaultSenderAddress)
         {
             if (msisdn.StartsWith("88"))
             {
                 msisdn = msisdn.Substring(2); // "01852956967"
             }
 
-            var accessToken = await GenerateToken();
+            var accessToken = await GetAccessToken();
 
             if (string.IsNullOrEmpty(accessToken))
                 throw new Exception("Failed to generate access token.");
-
             var body = new
             {
                 outboundSMSMessageRequest = new
                 {
                     address = new[] { "tel:+88" + msisdn },
-                    senderAddress = "tel:" + SenderAddress,
+                    senderAddress = "tel:" + senderAddress,
                     outboundSMSTextMessage = new
                     {
                         message = message
