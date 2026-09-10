@@ -63,14 +63,12 @@ namespace RobiSendPromotionSms
                 {
                     await _sender.SendSms(number, message, senderAddress);
                     result.Sent++;
-                    await SaveLogAsync(number, message, "Success", senderAddress);
                 }
                 catch (Exception ex)
                 {
                     // One bad number must not abort the run.
                     result.Failed++;
                     result.Failures.Add((number, ex.Message));
-                    await SaveLogAsync(number, message, "Failed", senderAddress);
                 }
 
                 progress?.Report(result);

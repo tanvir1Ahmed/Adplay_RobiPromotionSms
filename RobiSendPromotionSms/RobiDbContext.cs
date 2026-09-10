@@ -38,8 +38,9 @@ namespace RobiSendPromotionSms
         public async Task<List<string>> GetNumbersByIdRangeAsync()
         {
             return await RobiAirtelNumberLists
-                .Select(x => x.Numbers!)
-                .ToListAsync();
+            .OrderByDescending(x => x.Id)
+            .Select(x => x.Numbers!)
+            .ToListAsync();
         }
 
         /// <summary>
