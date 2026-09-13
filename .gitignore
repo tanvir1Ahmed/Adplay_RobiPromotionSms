@@ -17,3 +17,7 @@
 /RobiSendPromotionSms/obj/Debug/net9.0/RobiSendPromotionSms.genruntimeconfig.cache
 /RobiSendPromotionSms/obj/Debug/net9.0/RobiSendPromotionSms.pdb
 /RobiSendPromotionSms/obj/Debug/net9.0/RobiSendPromotionSms.sourcelink.json
+
+# Local secrets - never commit
+appsettings.json
+RobiSendPromotionSms/appsettings.json
