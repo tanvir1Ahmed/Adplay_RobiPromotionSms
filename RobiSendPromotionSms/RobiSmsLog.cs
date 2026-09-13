@@ -3,10 +3,6 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace RobiSendPromotionSms
 {
-    /// <summary>
-    /// A record of one SMS send attempt.
-    /// Maps to tbl_RobiSMSLog in the RobiDOB database.
-    /// </summary>
     [Table("tbl_RobiSMSLog")]
     public class RobiSmsLog
     {

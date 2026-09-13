@@ -2,9 +2,6 @@ using System.Text.Json.Serialization;
 
 namespace RobiSendPromotionSms
 {
-    /// <summary>
-    /// Form payload posted to the Robi OAuth token endpoint.
-    /// </summary>
     public class TokenRequestPayload
     {
         public string GrantType { get; set; } = string.Empty;

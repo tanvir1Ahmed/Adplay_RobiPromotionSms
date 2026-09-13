@@ -3,10 +3,6 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace RobiSendPromotionSms
 {
-    /// <summary>
-    /// A recipient number in the promotional send list.
-    /// Maps to Robi_Airtel_NumberList in the RobiDOB database.
-    /// </summary>
     [Table("Robi_Airtel_NumberList")]
     public class RobiAirtelNumberList
     {

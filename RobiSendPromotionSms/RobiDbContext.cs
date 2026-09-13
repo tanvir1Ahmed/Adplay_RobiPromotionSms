@@ -2,10 +2,6 @@ using Microsoft.EntityFrameworkCore;
 
 namespace RobiSendPromotionSms
 {
-    /// <summary>
-    /// Read access to the RobiDOB database. Credentials match the
-    /// RobiDBConnection string in the robi_gamestar_api project.
-    /// </summary>
     public class RobiDbContext : DbContext
     {
         public const string ConnectionString =
@@ -31,10 +27,6 @@ namespace RobiSendPromotionSms
             }
         }
 
-        /// <summary>
-        /// Returns the numbers whose id falls within the given inclusive range,
-        /// mirroring SmsRepository.GetNumbersByIdRangeAsync in the GameStar project.
-        /// </summary>
         public async Task<List<string>> GetNumbersByIdRangeAsync()
         {
             return await RobiAirtelNumberLists
@@ -43,13 +35,6 @@ namespace RobiSendPromotionSms
             .ToListAsync();
         }
 
-        /// <summary>
-        /// Records one SMS send attempt in tbl_RobiSMSLog.
-        /// </summary>
-        /// <param name="recieverNumber">The number the message was addressed to.</param>
-        /// <param name="smsBody">The message text.</param>
-        /// <param name="status">Outcome of the attempt, e.g. "Success" or "Failed".</param>
-        /// <param name="senderName">The sender the message went out as.</param>
         public async Task SaveSmsLogAsync(
             string recieverNumber,
             string smsBody,

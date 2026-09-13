@@ -1,8 +1,5 @@
 namespace RobiSendPromotionSms
 {
-    /// <summary>
-    /// Outcome of a bulk send.
-    /// </summary>
     public class BulkSmsResult
     {
         public int Total { get; set; }
@@ -10,15 +7,17 @@ namespace RobiSendPromotionSms
         public int Failed { get; set; }
         public int Skipped { get; set; }
 
-        /// <summary>Numbers that failed, with the reason, for retry or inspection.</summary>
+        public int Batches { get; set; }
+
         public List<(string Msisdn, string Error)> Failures { get; } = new();
     }
 
-    /// <summary>
-    /// Sends one message to every number in Robi_Airtel_NumberList.
-    /// </summary>
     public class BulkSmsSender
     {
+        public const int DefaultBatchSize = 10000;
+
+        public static readonly TimeSpan DefaultBatchPause = TimeSpan.FromHours(2);
+
         private readonly SmsSender _sender;
         private readonly RobiDbContext _db;
 
@@ -28,29 +27,26 @@ namespace RobiSendPromotionSms
             _db = db;
         }
 
-        /// <summary>
-        /// Sends <paramref name="message"/> to every number in the table.
-        /// </summary>
-        /// <param name="message">The text to send.</param>
-        /// <param name="senderAddress">Short code the messages are sent from.</param>
-        /// <param name="delayMs">
-        /// Pause between sends, to stay under the gateway's rate limit.
-        /// </param>
-        /// <param name="progress">Called after each send with the running result.</param>
-        /// <param name="cancellationToken">Stops the run early; partial results are returned.</param>
         public async Task<BulkSmsResult> SendToAllAsync(
             string message,
             string senderAddress = SmsSender.DefaultSenderAddress,
             int delayMs = 200,
             IProgress<BulkSmsResult>? progress = null,
+            int batchSize = DefaultBatchSize,
+            TimeSpan? batchPause = null,
             CancellationToken cancellationToken = default)
         {
+            Console.WriteLine($"--------------------------- Application started ---------------------------");
+            var pause = batchPause ?? DefaultBatchPause;
             var numbers = await _db.GetNumbersByIdRangeAsync();
 
             var result = new BulkSmsResult { Total = numbers.Count };
 
+            var sentInBatch = 0;
+            int batchCount = 1;
             foreach (var number in numbers)
             {
+                
                 cancellationToken.ThrowIfCancellationRequested();
 
                 if (string.IsNullOrWhiteSpace(number))
@@ -66,37 +62,31 @@ namespace RobiSendPromotionSms
                 }
                 catch (Exception ex)
                 {
-                    // One bad number must not abort the run.
                     result.Failed++;
                     result.Failures.Add((number, ex.Message));
                 }
 
                 progress?.Report(result);
 
+                sentInBatch++;
+
+                if (batchSize > 0 && sentInBatch >= batchSize && result.Sent + result.Failed < result.Total)
+                {
+                    sentInBatch = 0;
+                    result.Batches++;
+                    Console.WriteLine($"Batch {batchCount} completed. Pausing for {pause.TotalMinutes} minutes...");
+                    await Task.Delay(pause, cancellationToken);
+                    batchCount++;
+                    continue;
+                }
+
                 if (delayMs > 0)
                 {
                     await Task.Delay(delayMs, cancellationToken);
                 }
             }
-
+            Console.WriteLine($"--------------------------- Application Ended ---------------------------");
             return result;
-        }
-
-        /// <summary>
-        /// Writes a log row, swallowing any error. A logging failure must not
-        /// abort a run that is otherwise sending successfully.
-        /// </summary>
-        private async Task SaveLogAsync(
-            string number, string message, string status, string senderAddress)
-        {
-            try
-            {
-                await _db.SaveSmsLogAsync(number, message, status, senderAddress);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"  [log failed for {number}: {ex.Message}]");
-            }
         }
     }
 }
